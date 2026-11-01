@@ -84,3 +84,22 @@ def overlapping(targets: pd.DataFrame, holding_months: int, index: pd.DatetimeIn
         if len(live):
             out.append(live.mean().rename(t))
     return pd.DataFrame(out)
+
+
+def daily_returns(held: pd.DataFrame, daily: pd.DataFrame) -> pd.Series:
+    """Daily returns of a portfolio rebalanced monthly: `held` rows are month-ends, the weights held during that month.
+
+    Within each month positions drift with their own daily returns, so the daily
+    returns compound to the monthly backtest's return (up to differences between
+    the data provider's daily and monthly files). Missing daily returns of held
+    assets count as zero, the same convention as the monthly data gap.
+    """
+    out = []
+    for m, w in held.iterrows():
+        days = daily.loc[(daily.index > m - pd.offsets.MonthEnd(1)) & (daily.index <= m), w.index[w != 0]]
+        if days.empty:
+            continue
+        growth = (1 + days.fillna(0.0)).cumprod()
+        value = 1 + ((growth - 1) * w[days.columns]).sum(axis=1)
+        out.append(value / value.shift(1, fill_value=1.0) - 1)
+    return pd.concat(out).rename("portfolio")

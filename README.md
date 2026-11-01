@@ -8,7 +8,7 @@ Every study asks its own question, checks the method against a known answer firs
 |---|---|---|---|
 | 01 | [Factor model](notebooks/01_factor_model.ipynb) | Is Berkshire's record alpha or factor exposure? Is my engine's valuation signal alpha or a disguised factor bet? | ✅ |
 | 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factor controls, publication, trading costs and crashes? | ✅ |
-| 03 | Risk: Monte Carlo and VaR | How far do normal, historical and Monte Carlo VaR understate crash risk? | Planned |
+| 03 | [Risk: VaR, ES and Monte Carlo](notebooks/03_risk_var.ipynb) | Which VaR models keep their promise over 90 years of crashes, and where do they fail? | ✅ |
 | 04 | Pairs trading | Does cointegration within software survive out of sample? | Planned |
 | 05 | Options | Black-Scholes pricing and Greeks against market prices | Planned |
 
@@ -86,6 +86,30 @@ A monthly backtester (`backtest/engine.py`) takes target weights and returns net
 
 ---
 
+## 03 · Risk: VaR, Expected Shortfall and Monte Carlo, 1926–2026
+
+Five 99% VaR models are backtested on about 23,500 days each (`risk/`). The two portfolios are the US market and study 02's industry momentum strategy, valued daily. Every forecast uses only past data.
+
+**One-day VaR:**
+
+| Model | Exceptions (target 1%) | Clustered? | Red Basel years | ES Z2 (0 = right) |
+|---|---|---|---|---|
+| Normal | 2.2% | yes | 15–19 | +1.8 |
+| Historical simulation | 1.4% | yes | 7–10 | +0.5 |
+| EWMA (RiskMetrics) | 1.9–2.1% | yes | 0–7 | +1.1 to +1.6 |
+| **Filtered historical** | **1.2%** | mildly | **0** | **+0.2** |
+| GARCH(1,1)-t | 1.3–1.4% | market: no | 0–1 | +0.3 to +0.4 |
+
+- **Fat tails:** each series has about 100 days beyond 5 standard deviations. A normal distribution expects 0.015.
+- **No model foresees the crash day:** 19 October 1987 was a 17% loss against a best VaR of 5%. What separates the models is how fast they adapt. In March 2020, historical VaR was breached 9 times and filtered historical 3.
+- **Ten days, by Monte Carlo:** a simulated GARCH-t first did *worse* than √10 scaling. With fat-tailed errors the maximum-likelihood mean behaves like the **median** (0.08% a day, against an actual mean of 0.04%), and over 10 days that takes ~0.8 pts off every VaR. With a zero drift the market's 10-day VaR passes both tests (1.4% exceptions).
+- **Momentum's multi-day crashes beat every model** (≥ 2% exceptions at 10 days, apart from the very conservative historical method). They come from its exposure to a market rebound, not from volatility, which argues for scenario tests alongside VaR.
+- **The models fail in opposite regimes:** volatility models miss in calm markets, historical simulation in turbulent ones.
+
+<img src="docs/images/03_crises.png" alt="Daily returns against historical and filtered historical VaR in March 2020 and spring 2009">
+
+---
+
 ## Layout
 
 ```
@@ -98,6 +122,9 @@ src/quant_research/
   backtest/engine.py     weights -> gross/net returns with drift, turnover, trading and borrow costs
   backtest/metrics.py    Sharpe, drawdown, block-bootstrap CI, probabilistic and deflated Sharpe, break-even cost
   strategies/momentum.py trailing-return signals and long-short weights
+  risk/var.py            normal, historical, EWMA and filtered-historical VaR / ES forecasts
+  risk/garch.py          rolling GARCH(1,1)-t forecasts and Monte Carlo multi-day losses
+  risk/backtest.py       Kupiec, Christoffersen, Basel traffic light, Acerbi-Szekely ES test
 notebooks/               one executed notebook per study
 data/engine_signals.csv  the valuation engine's point-in-time signals (scripts/export_engine_signals.py)
 tests/                   synthetic-data tests, no network
@@ -110,7 +137,7 @@ git clone https://github.com/ranabrahami/quant-research.git
 cd quant-research
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 31 tests, no network
+pytest                                   # 45 tests, no network
 jupyter lab notebooks/01_factor_model.ipynb
 ```
 
