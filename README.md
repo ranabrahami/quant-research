@@ -1,16 +1,53 @@
 # Quant Research
 
-**Quantitative equity research studies, each built on tested code and published as an executed notebook.**
+**Five quantitative research studies on the questions asset managers and bank risk teams work on: factor exposure, strategy evaluation, risk models, statistical arbitrage and derivatives.**
 
-Every study asks its own question, checks the method against a known answer first, and reports what the data can't support as clearly as what it can. Studies build on each other and on my [SaaS Valuation Engine](https://github.com/ranabrahami/saas-valuation-engine), whose point-in-time valuation signal several of them test.
+Each study asks one question and checks its method against a known published result before applying it. It reports what the data doesn't support as plainly as what it does. All code is tested (70 tests), and every study is an executed notebook whose numbers and charts render on GitHub.
 
-| # | Study | Question | Status |
+By Ran Abrahami, Business & Data Analytics student. Companion project: the [SaaS Valuation Engine](https://github.com/ranabrahami/saas-valuation-engine), an equity research report generator whose valuation signal is tested in studies 01 and 02.
+
+## Findings
+
+| # | Study | Question | Finding |
 |---|---|---|---|
-| 01 | [Factor model](notebooks/01_factor_model.ipynb) | Is Berkshire's record alpha or factor exposure? Is my engine's valuation signal alpha or a disguised factor bet? | ✅ |
-| 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factor controls, publication, trading costs and crashes? | ✅ |
-| 03 | [Risk: VaR, ES and Monte Carlo](notebooks/03_risk_var.ipynb) | Which VaR models keep their promise over 90 years of crashes, and where do they fail? | ✅ |
-| 04 | [Pairs trading](notebooks/04_pairs_trading.ipynb) | Does cointegration hold out of sample, and what does survivorship hide? | ✅ |
-| 05 | [Options](notebooks/05_options.ipynb) | What does the market charge for volatility and crash insurance, and what does selling it earn? | ✅ |
+| 01 | [Factor model](notebooks/01_factor_model.ipynb) | Is a track record alpha, or factor exposure? | Berkshire's alpha is mostly value, quality and low beta, as the literature finds. My engine's valuation signal is not a disguised factor bet, but its alpha isn't significant over 3.5 years |
+| 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factors, publication, costs and crashes? | Sharpe 0.46 over 99 years. Controlling for stock momentum cuts its alpha from 10% to 1.7% a year, its Sharpe fell from 0.75 to 0.33 after publication, and its worst month was −58% |
+| 03 | [Risk: VaR and Monte Carlo](notebooks/03_risk_var.ipynb) | Which VaR models keep their promise over 90 years? | Filtered historical simulation is best (1.2% exceptions, no red Basel years). Monte Carlo GARCH-t fails at 10 days until the estimated mean is set to zero |
+| 04 | [Pairs trading](notebooks/04_pairs_trading.ipynb) | Does cointegration hold out of sample? | No. Pairs cointegrated this year are cointegrated next year no more often than random pairs (9%). The stock profits come from 2008–09 |
+| 05 | [Options](notebooks/05_options.ipynb) | What does the market charge for volatility and crash insurance? | Crash puts cost up to 4.7x their historical payout. Variance swaps earned a real premium (Sharpe 0.8–1.2 net), but "sell straddles at VIX" backtests mostly reflect the VIX-to-ATM gap |
+
+**One thread runs through all five: the same few crisis months.** Momentum crashed in the rebounds of 1932 and 2009. Pairs trading earned most of its 22-year profit in 2008–09. Selling volatility lost 5–10% of notional in a single month in September 2008 and March 2020. The risk models missed most in the calm periods just before these shocks. A portfolio combining these strategies is a bet on how markets behave in a handful of months.
+
+## How the studies are built
+
+- **Check the method on a known answer first:**
+  - Berkshire's loadings against *Buffett's Alpha*;
+  - Black-Scholes against Hull's textbook example;
+  - industry momentum against Moskowitz and Grinblatt;
+  - pairs trading following Gatev, Goetzmann and Rouwenhorst.
+- **No look-ahead.** Signals are rebuilt from data available at the time, forecasts use past data only, and tests check this.
+- **Designs fixed before running.** Variants tried afterwards are counted and deflated: the deflated Sharpe ratio in study 02.
+- **Survivorship-free data where possible:** French's industry and market data back to 1926. Where it isn't (Yahoo stocks), the bias is shown concretely: Silicon Valley Bank and First Republic are missing.
+- **Robustness built in.** Subperiods and post-publication samples, trading and borrow costs, leave-one-out, calendar-alignment checks, and block-bootstrap intervals.
+
+## What I got wrong and fixed
+
+Finding these is part of the work, so each is documented in its notebook:
+- **A price-cache bug** silently truncated histories (study 04). I fixed it, added a regression test, and re-ran the earlier notebooks: the outputs were unchanged.
+- **A look-ahead in a first draft.** It required stocks to have prices for the whole *future* trading window, which is survivorship in miniature.
+- **Pairs legs sized $1/$1** mismatched the cointegration spread, so 9% of "converged" trades lost money. Sizing the legs by the hedge ratio fixed it, and the conclusions held.
+- **A hedged-straddle backtest** priced at VIX showed a Sharpe of 2.8. VIX is not the at-the-money vol a seller receives, and the break-even sits about 3.7 points lower.
+- **A 2-point put/call implied-vol gap**, caused by the rate and dividend inputs. Fixed by backing out the forward from put-call parity.
+- **My own misreadings:** a misread Expected Shortfall statistic, and an unexpected test failure that turned out to be the central limit theorem, not a bug.
+
+## Methods and tools
+
+- **Models:** factor regressions with Newey-West errors, event-time and overlapping-cohort portfolios.
+- **Backtesting:** drift-aware turnover, transaction and borrow costs, deflated and probabilistic Sharpe, block bootstrap.
+- **Risk:** VaR and Expected Shortfall (normal, historical, EWMA, filtered historical, GARCH-t), Kupiec, Christoffersen and Basel backtests, Monte Carlo.
+- **Statistical arbitrage:** Engle-Granger cointegration.
+- **Derivatives:** Black-Scholes and Greeks, implied volatility, delta-hedging simulation.
+- **Stack:** Python, pandas, NumPy, SciPy, statsmodels, arch, matplotlib, pytest, Jupyter.
 
 *Educational project, not investment advice.*
 
