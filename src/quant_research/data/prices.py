@@ -14,22 +14,27 @@ warnings.filterwarnings("ignore", module="yfinance")       # its pandas deprecat
 
 CACHE = Path(__file__).resolve().parents[3] / "data" / "raw" / "prices"
 MAX_AGE_HOURS = 24
+FULL_HISTORY_START = "1970-01-01"
 
 
 def daily_prices(ticker: str, start: str = "1985-01-01", refresh: bool = False) -> pd.Series:
+    """Dividend-adjusted daily closes from `start`.
+
+    The cache always holds the full available history and is sliced on read, so a
+    later call with an earlier `start` can't be served a shorter cached series.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
-    path = CACHE / f"{ticker.replace('^', '_')}.csv"
+    path = CACHE / f"{ticker.replace('^', '_')}_full.csv"
     if not refresh and path.exists() and time.time() - path.stat().st_mtime < MAX_AGE_HOURS * 3600:
         s = pd.read_csv(path, index_col="date", parse_dates=["date"])["adj_close"]
-        if s.index.min() <= pd.Timestamp(start) + pd.Timedelta(days=10) or len(s) > 100:
-            return s
-    hist = yf.Ticker(ticker).history(start=start, auto_adjust=False)
-    if hist.empty:
-        raise RuntimeError(f"No price history for {ticker}")
-    s = pd.Series(hist["Adj Close"].to_numpy(), index=pd.DatetimeIndex(hist.index.tz_localize(None).normalize(),
-                                                                         name="date"), name="adj_close")
-    s.to_frame().to_csv(path)
-    return s
+    else:
+        hist = yf.Ticker(ticker).history(start=FULL_HISTORY_START, auto_adjust=False)
+        if hist.empty:
+            raise RuntimeError(f"No price history for {ticker}")
+        s = pd.Series(hist["Adj Close"].to_numpy(), index=pd.DatetimeIndex(hist.index.tz_localize(None).normalize(),
+                                                                             name="date"), name="adj_close")
+        s.to_frame().to_csv(path)
+    return s[s.index >= pd.Timestamp(start)]
 
 
 def monthly_returns(prices: pd.Series) -> pd.Series:

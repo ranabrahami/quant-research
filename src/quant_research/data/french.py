@@ -24,6 +24,7 @@ DATASETS = {
     "mom": "F-F_Momentum_Factor_CSV.zip",                 # Mom (UMD)
     "ff3": "F-F_Research_Data_Factors_CSV.zip",           # Mkt-RF, SMB, HML, RF
     "ind49": "49_Industry_Portfolios_CSV.zip",            # 49 value-weighted industry returns
+    "strev": "F-F_ST_Reversal_Factor_CSV.zip",            # short-term reversal: last month's losers minus winners
     "ff3_daily": "F-F_Research_Data_Factors_daily_CSV.zip",
     "ind49_daily": "49_Industry_Portfolios_daily_CSV.zip",
 }

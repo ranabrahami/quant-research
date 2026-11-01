@@ -9,7 +9,7 @@ Every study asks its own question, checks the method against a known answer firs
 | 01 | [Factor model](notebooks/01_factor_model.ipynb) | Is Berkshire's record alpha or factor exposure? Is my engine's valuation signal alpha or a disguised factor bet? | ✅ |
 | 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factor controls, publication, trading costs and crashes? | ✅ |
 | 03 | [Risk: VaR, ES and Monte Carlo](notebooks/03_risk_var.ipynb) | Which VaR models keep their promise over 90 years of crashes, and where do they fail? | ✅ |
-| 04 | Pairs trading | Does cointegration within software survive out of sample? | Planned |
+| 04 | [Pairs trading](notebooks/04_pairs_trading.ipynb) | Does cointegration hold out of sample, and what does survivorship hide? | ✅ |
 | 05 | Options | Black-Scholes pricing and Greeks against market prices | Planned |
 
 *Educational project, not investment advice.*
@@ -110,6 +110,27 @@ Five 99% VaR models are backtested on about 23,500 days each (`risk/`). The two 
 
 ---
 
+## 04 · Pairs trading: does cointegration hold out of sample?
+
+This follows Gatev, Goetzmann and Rouwenhorst (2006): 12 months to form pairs, 6 months to trade them, with entry at 2 standard deviations and overlapping monthly portfolios (`pairs/`). Two universes, two ways of choosing pairs:
+- **Stocks:** 56 large US stocks, 2005–26, today's survivors.
+- **Industries:** French's 49 industries, 1970–2026, no survivorship bias.
+
+| | Distance | Cointegration |
+|---|---|---|
+| Stocks, gross / net of costs | +0.3% / −1.0% a year | **+4.3% / +2.8%** (t 2.5 net) |
+| Industries, gross / net | −0.6% / −2.1% | −0.5% / −2.1% |
+
+- **Cointegration doesn't persist.** Of the pairs cointegrated in one year, 9% are cointegrated the next year: the same rate as any random pair. Hedge ratios move by more than 40%. The test finds recent mean reversion, not a stable relationship.
+- **The stock profits are one crisis.** July 2008 to December 2009 returned +53%. Every other month earned about 1% a year after costs (t 1.2). Returns before costs also fell from 6.7% a year in 2005–14 to 2% since.
+- **Industry pairs lose because they bet against industry momentum** (study 02). The momentum loading has t ≈ −10, and the alpha is zero.
+- **Survivorship is concrete here.** SVB and First Republic are missing from the data. A pairs rule *buys* the bank that falls behind its partner, and one failed bank in 20 pairs costs about 5%, as much as the strategy's worst month.
+- **Design check.** Holding $1 of each stock mismatches the cointegration spread when the hedge ratio β ≠ 1: 9% of "converged" trades lost money. Sizing the legs 1 : β fixes this and leaves the results unchanged.
+
+<img src="docs/images/04_stability.png" alt="Share of cointegrated pairs still cointegrated the following year vs the base rate">
+
+---
+
 ## Layout
 
 ```
@@ -125,6 +146,8 @@ src/quant_research/
   risk/var.py            normal, historical, EWMA and filtered-historical VaR / ES forecasts
   risk/garch.py          rolling GARCH(1,1)-t forecasts and Monte Carlo multi-day losses
   risk/backtest.py       Kupiec, Christoffersen, Basel traffic light, Acerbi-Szekely ES test
+  pairs/selection.py     distance and Engle-Granger cointegration pair selection
+  pairs/trading.py       z-score pair trading with costs, borrow, dollar or beta hedges; rolling overlapping portfolios
 notebooks/               one executed notebook per study
 data/engine_signals.csv  the valuation engine's point-in-time signals (scripts/export_engine_signals.py)
 tests/                   synthetic-data tests, no network
@@ -137,7 +160,7 @@ git clone https://github.com/ranabrahami/quant-research.git
 cd quant-research
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 45 tests, no network
+pytest                                   # 56 tests, no network
 jupyter lab notebooks/01_factor_model.ipynb
 ```
 

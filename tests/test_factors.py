@@ -174,3 +174,27 @@ def test_parse_monthly_marks_missing_codes_as_nan():
     df = parse_monthly("header line\n" + text)
     assert df["A"].isna().all()
     assert df["B"].tolist() == pytest.approx([0.01, 0.02])
+
+
+def test_price_cache_serves_earlier_starts(monkeypatch, tmp_path):
+    """Regression: a cache filled by a late-start call must not truncate a later early-start call."""
+    from quant_research.data import prices as px
+
+    calls = []
+
+    class FakeTicker:
+        def __init__(self, ticker):
+            pass
+
+        def history(self, start, auto_adjust):
+            calls.append(start)
+            idx = pd.date_range("2000-01-03", "2024-12-31", freq="B", tz="America/New_York")
+            return pd.DataFrame({"Adj Close": np.linspace(1, 2, len(idx))}, index=idx)
+
+    monkeypatch.setattr(px, "CACHE", tmp_path)
+    monkeypatch.setattr(px.yf, "Ticker", FakeTicker)
+    late = px.daily_prices("XYZ", start="2022-01-01")
+    early = px.daily_prices("XYZ", start="2004-01-01")
+    assert late.index.min() >= pd.Timestamp("2022-01-01")
+    assert pd.Timestamp("2004-01-01") <= early.index.min() < pd.Timestamp("2004-01-10")
+    assert len(calls) == 1                                    # second call served from the full cache
