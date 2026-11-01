@@ -10,7 +10,7 @@ Every study asks its own question, checks the method against a known answer firs
 | 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factor controls, publication, trading costs and crashes? | ✅ |
 | 03 | [Risk: VaR, ES and Monte Carlo](notebooks/03_risk_var.ipynb) | Which VaR models keep their promise over 90 years of crashes, and where do they fail? | ✅ |
 | 04 | [Pairs trading](notebooks/04_pairs_trading.ipynb) | Does cointegration hold out of sample, and what does survivorship hide? | ✅ |
-| 05 | Options | Black-Scholes pricing and Greeks against market prices | Planned |
+| 05 | [Options](notebooks/05_options.ipynb) | What does the market charge for volatility and crash insurance, and what does selling it earn? | ✅ |
 
 *Educational project, not investment advice.*
 
@@ -131,6 +131,26 @@ This follows Gatev, Goetzmann and Rouwenhorst (2006): 12 months to form pairs, 6
 
 ---
 
+## 05 · Options: what does the market charge for volatility and crash insurance?
+
+The code (`options/`) covers:
+- **Pricing:** Black-Scholes with dividends, all five Greeks, an implied-volatility solver and a Monte Carlo check. The tests reproduce Hull's textbook values and match each Greek to finite differences.
+- **Hedging:** a daily delta-hedging simulator on real price paths.
+
+The data is a saved SPY option-chain snapshot (30 October 2026), VIX from 1990, and market returns from 1926.
+
+- **The smile is a skew.** One-month SPY implied vol is about 40% for puts 20% below spot, 16% at the money and 12% for calls above. Implied vols are computed from each expiry's forward price, backed out of put-call parity. Using the T-bill rate and the trailing dividend yield instead left a 2-point gap between puts and calls.
+- **Crash insurance is expensive.** One-month puts cost 1.3x their 1926–2026 average payout 5% out of the money, and 4.7x at 20%. Scaled to today's calm volatility it is 3–16x.
+- **VIX overstates realized volatility 86% of the time** (19% against 15% on average), yet still forecasts it (R² 0.52).
+- **Selling volatility:**
+  - **Variance swaps** (VIX is their fair strike) earned a Sharpe of 1.2, or 0.8 after a 1-point spread, with skew −6. March 2020 was the worst month.
+  - **Delta-hedged at-the-money straddles** break even only if sold above about VIX − 3.7. That equals today's gap between VIX and at-the-money vol, so the textbook "sell at VIX" backtest (Sharpe 2.6) mostly reflects that gap. Most of the premium sits in out-of-the-money puts.
+  - **The crash cost doesn't depend on the calendar:** whatever day the monthly blocks start on, one month in September 2008 or March 2020 cost 5–10% of notional, about two years of income.
+
+<img src="docs/images/05_short_vol.png" alt="Cumulative P&L of delta-hedged short straddles at different selling prices, and the theta-gamma decomposition">
+
+---
+
 ## Layout
 
 ```
@@ -148,8 +168,11 @@ src/quant_research/
   risk/backtest.py       Kupiec, Christoffersen, Basel traffic light, Acerbi-Szekely ES test
   pairs/selection.py     distance and Engle-Granger cointegration pair selection
   pairs/trading.py       z-score pair trading with costs, borrow, dollar or beta hedges; rolling overlapping portfolios
+  options/black_scholes.py  pricing, Greeks, implied volatility, Monte Carlo
+  options/hedging.py     daily delta hedging along a price path, theta-gamma P&L decomposition
 notebooks/               one executed notebook per study
 data/engine_signals.csv  the valuation engine's point-in-time signals (scripts/export_engine_signals.py)
+data/spy_options_*.csv   SPY option-chain snapshot used by study 05
 tests/                   synthetic-data tests, no network
 ```
 
@@ -160,7 +183,7 @@ git clone https://github.com/ranabrahami/quant-research.git
 cd quant-research
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 56 tests, no network
+pytest                                   # 70 tests, no network
 jupyter lab notebooks/01_factor_model.ipynb
 ```
 
