@@ -4,7 +4,8 @@ https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
 
 Files are zipped CSVs that hold several tables (monthly, then annual), in
 percent. The parser takes the first block of rows whose first field is a
-six-digit YYYYMM date, which is the monthly table, and converts to decimals.
+six-digit YYYYMM date, which is the monthly table (for the industry files,
+value-weighted), and converts to decimals with missing values as NaN.
 """
 
 from __future__ import annotations
@@ -22,7 +23,9 @@ DATASETS = {
     "ff5": "F-F_Research_Data_5_Factors_2x3_CSV.zip",     # Mkt-RF, SMB, HML, RMW, CMA, RF
     "mom": "F-F_Momentum_Factor_CSV.zip",                 # Mom (UMD)
     "ff3": "F-F_Research_Data_Factors_CSV.zip",           # Mkt-RF, SMB, HML, RF
+    "ind49": "49_Industry_Portfolios_CSV.zip",            # 49 value-weighted industry returns
 }
+MISSING = -99.99             # the library codes missing values as -99.99 or -999
 CACHE = Path(__file__).resolve().parents[3] / "data" / "raw" / "french"
 MAX_AGE_DAYS = 30            # the library updates monthly
 
@@ -42,7 +45,8 @@ def parse_monthly(text: str) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=["date"] + header[1:])
     df.index = pd.to_datetime(df.pop("date"), format="%Y%m") + pd.offsets.MonthEnd(0)
     df.index.name = "date"
-    df = df.apply(pd.to_numeric, errors="coerce") / 100
+    df = df.apply(pd.to_numeric, errors="coerce")
+    df = df.mask(df <= MISSING) / 100
     df.columns = [c.replace(" ", "") for c in df.columns]
     return df
 

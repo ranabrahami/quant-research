@@ -7,8 +7,8 @@ Every study asks its own question, checks the method against a known answer firs
 | # | Study | Question | Status |
 |---|---|---|---|
 | 01 | [Factor model](notebooks/01_factor_model.ipynb) | Is Berkshire's record alpha or factor exposure? Is my engine's valuation signal alpha or a disguised factor bet? | ✅ |
-| 02 | Backtester | A reusable event-driven backtester with costs, turnover and capacity | Planned |
-| 03 | Risk: Monte Carlo and VaR | How wrong are normal-distribution VaR estimates for a factor portfolio? | Planned |
+| 02 | [Backtester: industry momentum](notebooks/02_backtester.ipynb) | Does a published anomaly survive factor controls, publication, trading costs and crashes? | ✅ |
+| 03 | Risk: Monte Carlo and VaR | How far do normal, historical and Monte Carlo VaR understate crash risk? | Planned |
 | 04 | Pairs trading | Does cointegration within software survive out of sample? | Planned |
 | 05 | Options | Black-Scholes pricing and Greeks against market prices | Planned |
 
@@ -57,6 +57,35 @@ Each quarter from March 2023 the portfolio goes long the six companies the engin
 
 ---
 
+## 02 · Backtester: industry momentum, 1927–2026
+
+A monthly backtester (`backtest/engine.py`) takes target weights and returns net performance:
+- **Timing:** a signal dated *t* only earns returns from *t + 1*.
+- **Drift:** positions drift between trades, and turnover is measured against the drifted weights.
+- **Costs:** trading costs are charged per unit of turnover, and borrow costs on the short side.
+- **Statistics:** block-bootstrap confidence intervals and the deflated Sharpe ratio.
+
+**The test case** is Moskowitz and Grinblatt's (1999) industry momentum strategy: long the 20% of French's 49 industries with the best past-year returns, short the worst 20%. Industries don't get delisted, so the test has no survivorship bias. The design was fixed before running it.
+
+| Test | Result |
+|---|---|
+| Raw performance | 7.8% a year, Sharpe 0.46 (95% CI 0.22–0.71), t 4.5 |
+| Just another factor? | **Mostly yes.** FF3 alpha 10% (t 5.3), but the loading on stock momentum is 0.90 (t 33) and the FF5 + Mom alpha falls to 1.7% (t 1.4) |
+| Survived publication? | Sharpe 0.75 in the paper's 1963–95 sample, 0.33 since 1996 |
+| Survives costs? | It turns over ~12x a year. Break-even is 67 bps per trade: it survives today's costs but not historical ones |
+| Tail risk | Max drawdown −85%. All six worst months were market rebounds after a bear market (Aug 1932 −58%, Apr 2009 −35%) |
+| Data snooping | Ranks 16th of 96 variants; deflated Sharpe 0.96 |
+
+<img src="docs/images/02_industry_momentum.png" alt="Industry momentum growth of $1 since 1927, log scale">
+
+**The crash pattern makes the risk partly predictable.** After the market has fallen over two years, the strategy loses 24% a year (annualized) in months the market rises and gains 35% in months it falls. After a crash, the losing industries are the riskiest ones, so the short side becomes a bet against a market rebound.
+
+**The valuation engine's signal with costs:** with the 12-month design, about 5.7% gross becomes about 4.8% net at 10 bps per trade and 50 bps a year to borrow. Break-even is above 130 bps, so costs aren't the binding constraint; the 3.5-year sample is.
+
+<img src="docs/images/02_variants.png" alt="Sharpe ratios of 96 variants and mean Sharpe by lookback and holding period">
+
+---
+
 ## Layout
 
 ```
@@ -66,6 +95,9 @@ src/quant_research/
   stats.py               OLS with Newey-West errors, rolling regressions
   factors/model.py       factor regressions, attribution, rolling exposures
   factors/portfolios.py  signal -> long-short portfolios (rebalance or overlapping cohorts), event-time returns
+  backtest/engine.py     weights -> gross/net returns with drift, turnover, trading and borrow costs
+  backtest/metrics.py    Sharpe, drawdown, block-bootstrap CI, probabilistic and deflated Sharpe, break-even cost
+  strategies/momentum.py trailing-return signals and long-short weights
 notebooks/               one executed notebook per study
 data/engine_signals.csv  the valuation engine's point-in-time signals (scripts/export_engine_signals.py)
 tests/                   synthetic-data tests, no network
@@ -78,7 +110,7 @@ git clone https://github.com/ranabrahami/quant-research.git
 cd quant-research
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pytest                                   # 15 tests, no network
+pytest                                   # 31 tests, no network
 jupyter lab notebooks/01_factor_model.ipynb
 ```
 

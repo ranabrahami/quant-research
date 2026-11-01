@@ -167,3 +167,10 @@ def test_event_time_counts_months_after_each_signal():
     first = ev[ev["date"] == "2024-03-31"]
     assert list(first["month"]) == list(pd.date_range("2024-04-30", periods=3, freq="ME"))
     assert ev["long_short"].to_numpy() == pytest.approx(0.03)
+
+
+def test_parse_monthly_marks_missing_codes_as_nan():
+    text = ",A,B\n192607,  -99.99,   1.00\n192608,  -999,   2.00\n"
+    df = parse_monthly("header line\n" + text)
+    assert df["A"].isna().all()
+    assert df["B"].tolist() == pytest.approx([0.01, 0.02])
